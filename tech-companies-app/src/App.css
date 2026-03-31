@@ -72,6 +72,7 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 16px;
   padding: 24px;
+  width: 98%;
   max-width: 98%;
   margin: -40px auto 0;
   position: relative;
@@ -121,6 +122,7 @@ body {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  width: 98%;
   max-width: 98%;
   margin: 0 auto;
   padding: 0 12px;
@@ -398,6 +400,7 @@ td:nth-child(1) {
 
 /* --- Table --- */
 .container {
+  width: 98%;
   max-width: 98%;
   margin: 0 auto;
   padding: 0 12px 40px;
