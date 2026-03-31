@@ -21,7 +21,7 @@ function App() {
 
   const filteredCompanies = useMemo(() => {
     let result = regionFilter
-      ? companies.filter(c => c.region === regionFilter)
+      ? companies.filter(c => c.regions && c.regions.includes(regionFilter))
       : companies
 
     if (sortConfig.key) {
@@ -38,11 +38,13 @@ function App() {
   }, [companies, regionFilter, sortConfig])
 
   const stats = useMemo(() => {
-    const counts = { total: companies.length, riyadh: 0, hail: 0, qassim: 0 }
+    const counts = { total: companies.length, riyadh: 0, hail: 0, qassim: 0, remote: 0 }
     companies.forEach(c => {
-      if (c.region === 'الرياض') counts.riyadh++
-      if (c.region === 'حائل') counts.hail++
-      if (c.region === 'القصيم') counts.qassim++
+      const r = c.regions || []
+      if (r.includes('الرياض')) counts.riyadh++
+      if (r.includes('حائل')) counts.hail++
+      if (r.includes('القصيم')) counts.qassim++
+      if (r.includes('عن بعد')) counts.remote++
     })
     return counts
   }, [companies])
@@ -64,6 +66,7 @@ function App() {
   }
 
   const badgeRegion = (r) => {
+    if (r && r.includes('·')) return <span className="badge badge-multiple">{r}</span>
     const classes = {
       'الرياض': 'badge-riyadh',
       'حائل': 'badge-hail',
@@ -141,6 +144,7 @@ function App() {
         <div className="stat"><span className="num">{stats.riyadh}</span><span className="label">الرياض</span></div>
         <div className="stat"><span className="num">{stats.hail}</span><span className="label">حائل</span></div>
         <div className="stat"><span className="num">{stats.qassim}</span><span className="label">القصيم</span></div>
+        <div className="stat"><span className="num">{stats.remote}</span><span className="label">عن بعد</span></div>
       </div>
 
       <div className="controls-wrapper">
@@ -150,7 +154,7 @@ function App() {
             <option value="الرياض">📍 الرياض</option>
             <option value="حائل">📍 حائل</option>
             <option value="القصيم">📍 القصيم</option>
-            <option value="متعدد">🌍 متعدد / دولي</option>
+            <option value="عن بعد">🌍 عن بعد / Remote</option>
           </select>
           <div className="btn-columns" onClick={() => setShowColDropdown(!showColDropdown)}>
             <span>⚙️ اخفاء او اظهار معلومات اكثر</span>
