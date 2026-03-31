@@ -5,6 +5,7 @@ import { companies as initialCompanies } from './data'
 function App() {
   const [regionFilter, setRegionFilter] = useState('')
   const [showColDropdown, setShowColDropdown] = useState(false)
+  const [copyMsg, setCopyMsg] = useState('')
   const [visibleCols, setVisibleCols] = useState({
     2: true, 3: true, 5: true, 6: true, 7: true, 8: true, 9: true, 10: true
   })
@@ -19,7 +20,7 @@ function App() {
   }, [])
 
   const filteredCompanies = useMemo(() => {
-    let result = regionFilter 
+    let result = regionFilter
       ? companies.filter(c => c.region === regionFilter)
       : companies
 
@@ -120,6 +121,14 @@ function App() {
 
   const isH = (colIdx) => !visibleCols[colIdx] ? 'hidden-col' : ''
 
+  const handleCopy = (text) => {
+    if (!text || text === '—') return
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyMsg(`تم نسخ: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`)
+      setTimeout(() => setCopyMsg(''), 2000)
+    })
+  }
+
   return (
     <div dir="rtl">
       <div className="header">
@@ -157,9 +166,9 @@ function App() {
                 { id: 10, label: 'غير السعوديين' }
               ].map(col => (
                 <label key={col.id} className="col-item">
-                  <input 
-                    type="checkbox" 
-                    checked={visibleCols[col.id]} 
+                  <input
+                    type="checkbox"
+                    checked={visibleCols[col.id]}
                     onChange={() => toggleCol(col.id)}
                   /> {col.label}
                 </label>
@@ -170,6 +179,7 @@ function App() {
       </div>
 
       <div className="container">
+        {copyMsg && <div className="copy-tooltip">{copyMsg}</div>}
         {filteredCompanies.length > 0 ? (
           <>
             {windowWidth > 1024 ? (
@@ -193,25 +203,25 @@ function App() {
                     <tbody>
                       {filteredCompanies.map((c, i) => (
                         <tr key={i}>
-                          <td>{i + 1}</td>
-                          <td>
+                          <td onClick={() => handleCopy(i + 1)}>{i + 1}</td>
+                          <td onClick={() => handleCopy(`${c.name} ${c.spec}`)}>
                             <div className="company-info">
                               <span className="company-name">{c.name}</span>
                               <span className="company-spec">{c.spec}</span>
                             </div>
                           </td>
-                          <td className={isH(2)}>{badgeRegion(c.region)}</td>
-                          <td className={isH(3)}>{badgeSize(c.size)}</td>
-                          <td className={isH(5)}>{linkify(c.web)}</td>
-                          <td className={isH(6)}>
+                          <td className={isH(2)} onClick={() => handleCopy(c.region)}>{badgeRegion(c.region)}</td>
+                          <td className={isH(3)} onClick={() => handleCopy(c.size)}>{badgeSize(c.size)}</td>
+                          <td className={isH(5)} onClick={() => handleCopy(c.web)}>{linkify(c.web)}</td>
+                          <td className={isH(6)} onClick={() => handleCopy(c.contact)}>
                             <div className="contact-cell" title={c.contact || ''}>{c.contact || '—'}</div>
                           </td>
-                          <td className={isH(7)}>{c.linkedin ? linkify(c.linkedin, 'لينكد إن') : '—'}</td>
-                          <td className={isH(8)}>
+                          <td className={isH(7)} onClick={() => handleCopy(c.linkedin)}>{c.linkedin ? linkify(c.linkedin, 'لينكد إن') : '—'}</td>
+                          <td className={isH(8)} onClick={() => handleCopy(c.training)}>
                             <div className="training-cell" title={c.training || ''}>{c.training || '—'}</div>
                           </td>
-                          <td className={isH(9)}>{badgeGrade(c.grade)}</td>
-                          <td className={isH(10)}>{badgeNonSaudi(c.nonSaudi)}</td>
+                          <td className={isH(9)} onClick={() => handleCopy(c.grade)}>{badgeGrade(c.grade)}</td>
+                          <td className={isH(10)} onClick={() => handleCopy(c.nonSaudi)}>{badgeNonSaudi(c.nonSaudi)}</td>
                         </tr>
                       ))}
                     </tbody>
