@@ -3,13 +3,27 @@ import './App.css'
 import { companies as initialCompanies } from './data'
 
 function App() {
+  const allowedRegions = ['الرياض', 'حائل', 'القصيم']
+  const getCompanyRegions = (company) => {
+    const sourceRegions = Array.isArray(company.regions) && company.regions.length
+      ? company.regions
+      : (company.region ? [company.region] : [])
+    return sourceRegions.filter(r => allowedRegions.includes(r))
+  }
+  const getRegionText = (company) => {
+    const regions = getCompanyRegions(company)
+    return regions.join(' + ')
+  }
+
   const [regionFilter, setRegionFilter] = useState('')
   const [showColDropdown, setShowColDropdown] = useState(false)
   const [copyMsg, setCopyMsg] = useState('')
   const [visibleCols, setVisibleCols] = useState({
     2: true, 3: true, 5: true, 6: true, 7: true, 8: true, 9: true, 10: true
   })
-  const [companies, setCompanies] = useState(initialCompanies)
+  const [companies, setCompanies] = useState(
+    initialCompanies.filter(c => getCompanyRegions(c).length > 0)
+  )
   const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' })
   const [windowWidth, setWindowWidth] = useState(window.innerWidth)
 
@@ -21,13 +35,13 @@ function App() {
 
   const filteredCompanies = useMemo(() => {
     let result = regionFilter
-      ? companies.filter(c => c.regions && c.regions.includes(regionFilter))
+      ? companies.filter(c => getCompanyRegions(c).includes(regionFilter))
       : companies
 
     if (sortConfig.key) {
       result = [...result].sort((a, b) => {
-        const va = a[sortConfig.key] || ''
-        const vb = b[sortConfig.key] || ''
+        const va = sortConfig.key === 'region' ? getRegionText(a) : (a[sortConfig.key] || '')
+        const vb = sortConfig.key === 'region' ? getRegionText(b) : (b[sortConfig.key] || '')
         if (sortConfig.direction === 'asc') {
           return va.localeCompare(vb, 'ar')
         }
@@ -38,13 +52,12 @@ function App() {
   }, [companies, regionFilter, sortConfig])
 
   const stats = useMemo(() => {
-    const counts = { total: companies.length, riyadh: 0, hail: 0, qassim: 0, remote: 0 }
+    const counts = { total: companies.length, riyadh: 0, hail: 0, qassim: 0 }
     companies.forEach(c => {
-      const r = c.regions || []
-      if (r.includes('الرياض')) counts.riyadh++
-      if (r.includes('حائل')) counts.hail++
-      if (r.includes('القصيم')) counts.qassim++
-      if (r.includes('عن بعد')) counts.remote++
+      const regions = getCompanyRegions(c)
+      if (regions.includes('الرياض')) counts.riyadh++
+      if (regions.includes('حائل')) counts.hail++
+      if (regions.includes('القصيم')) counts.qassim++
     })
     return counts
   }, [companies])
@@ -66,13 +79,23 @@ function App() {
   }
 
   const badgeRegion = (r) => {
-    if (r && r.includes('·')) return <span className="badge badge-multiple">{r}</span>
     const classes = {
       'الرياض': 'badge-riyadh',
       'حائل': 'badge-hail',
       'القصيم': 'badge-qassim'
     }
     return <span className={`badge ${classes[r] || 'badge-multiple'}`}>{r}</span>
+  }
+
+  const badgeRegions = (regions) => {
+    if (!regions.length) return <span style={{ color: '#ccc' }}>—</span>
+    return (
+      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+        {regions.map((r) => (
+          <span key={r}>{badgeRegion(r)}</span>
+        ))}
+      </div>
+    )
   }
 
   const badgeSize = (s) => {
@@ -144,7 +167,6 @@ function App() {
         <div className="stat"><span className="num">{stats.riyadh}</span><span className="label">الرياض</span></div>
         <div className="stat"><span className="num">{stats.hail}</span><span className="label">حائل</span></div>
         <div className="stat"><span className="num">{stats.qassim}</span><span className="label">القصيم</span></div>
-        <div className="stat"><span className="num">{stats.remote}</span><span className="label">عن بعد</span></div>
       </div>
 
       <div className="controls-wrapper">
@@ -154,7 +176,6 @@ function App() {
             <option value="الرياض">📍 الرياض</option>
             <option value="حائل">📍 حائل</option>
             <option value="القصيم">📍 القصيم</option>
-            <option value="عن بعد">🌍 عن بعد / Remote</option>
           </select>
           <div className="btn-columns" onClick={() => setShowColDropdown(!showColDropdown)}>
             <span>⚙️ اخفاء او اظهار معلومات اكثر</span>
@@ -214,7 +235,7 @@ function App() {
                               <span className="company-spec">{c.spec}</span>
                             </div>
                           </td>
-                          <td className={isH(2)} onClick={() => handleCopy(c.region)}>{badgeRegion(c.region)}</td>
+                          <td className={isH(2)} onClick={() => handleCopy(getRegionText(c))}>{badgeRegions(getCompanyRegions(c))}</td>
                           <td className={isH(3)} onClick={() => handleCopy(c.size)}>{badgeSize(c.size)}</td>
                           <td className={isH(5)} onClick={() => handleCopy(c.web)}>{linkify(c.web)}</td>
                           <td className={isH(6)} onClick={() => handleCopy(c.contact)}>
@@ -241,7 +262,7 @@ function App() {
                       {badgeGrade(c.grade)}
                     </div>
                     <div className="m-grid">
-                      <div className="m-item"><span className="m-label">المنطقة</span><span className="m-value">{badgeRegion(c.region)}</span></div>
+                      <div className="m-item"><span className="m-label">المنطقة</span><span className="m-value">{badgeRegions(getCompanyRegions(c))}</span></div>
                       <div className="m-item"><span className="m-label">الحجم</span><span className="m-value">{badgeSize(c.size)}</span></div>
                       <div className="m-item"><span className="m-label">الموقع</span><span className="m-value">{linkify(c.web)}</span></div>
                       <div className="m-item">
