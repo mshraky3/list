@@ -3,6 +3,7 @@ import './App.css'
 import { companies as seedCompanies } from './data'
 
 const DB_KEY = 'tech-companies-db-v1'
+const PUBLIC_DB_PATH = '/companies-db.json'
 const allowedRegions = ['الرياض', 'حائل', 'القصيم']
 
 function makeId(name, idx = 0) {
@@ -40,6 +41,18 @@ function seedDb() {
     archived: [],
     updatedAt: new Date().toISOString(),
   }
+}
+
+function downloadJsonFile(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 function getCompanyRegions(company) {
@@ -86,24 +99,6 @@ function App() {
     let cancelled = false
 
     async function loadData() {
-      try {
-        const res = await fetch('/api/companies', { cache: 'no-store' })
-        if (res.ok) {
-          const data = await res.json()
-          if (!cancelled && data && Array.isArray(data.companies) && Array.isArray(data.archived)) {
-            setDb({
-              companies: data.companies.map((c, idx) => normalizeCompany(c, idx)),
-              archived: data.archived.map((c, idx) => normalizeCompany(c, idx + 10000)),
-              updatedAt: data.updatedAt || new Date().toISOString(),
-            })
-            setLoading(false)
-            return
-          }
-        }
-      } catch {
-        // Fallback handled below.
-      }
-
       const localRaw = localStorage.getItem(DB_KEY)
       if (localRaw) {
         try {
@@ -120,6 +115,25 @@ function App() {
         } catch {
           // Ignore invalid local cache.
         }
+      }
+
+      try {
+        const res = await fetch(PUBLIC_DB_PATH, { cache: 'no-store' })
+        if (res.ok) {
+          const data = await res.json()
+          if (!cancelled && data && Array.isArray(data.companies) && Array.isArray(data.archived)) {
+            setDb({
+              companies: data.companies.map((c, idx) => normalizeCompany(c, idx)),
+              archived: data.archived.map((c, idx) => normalizeCompany(c, idx + 10000)),
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            })
+            localStorage.setItem(DB_KEY, JSON.stringify(data))
+            setLoading(false)
+            return
+          }
+        }
+      } catch {
+        // Fallback handled below.
       }
 
       if (!cancelled) {
@@ -141,23 +155,68 @@ function App() {
     setDb(payload)
     localStorage.setItem(DB_KEY, JSON.stringify(payload))
 
-    try {
-      const res = await fetch('/api/companies', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (res.ok) {
-        setSaveMsg('تم حفظ التعديلات مباشرة على الموقع.')
-      } else {
-          setSaveMsg('تم الحفظ محلياً فقط. يحتاج الموقع بيئة API قابلة للكتابة.')
-      }
-    } catch {
-      setSaveMsg('تم الحفظ محلياً فقط (localStorage).')
-    }
+    setSaveMsg('تم الحفظ داخل المتصفح الحالي. استخدم تصدير JSON إذا أردت نقل التعديلات أو نشرها.')
 
     setTimeout(() => setSaveMsg(''), 3500)
+  }
+
+  const exportDb = () => {
+    const stamp = new Date().toISOString().slice(0, 10)
+    downloadJsonFile(`companies-db-${stamp}.json`, db)
+    setSaveMsg('تم تصدير ملف JSON بنجاح.')
+    setTimeout(() => setSaveMsg(''), 3500)
+  }
+
+  const importDb = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const raw = await file.text()
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed.companies) || !Array.isArray(parsed.archived)) {
+        throw new Error('invalid db shape')
+      }
+
+      const payload = {
+        companies: parsed.companies.map((c, idx) => normalizeCompany(c, idx)),
+        archived: parsed.archived.map((c, idx) => normalizeCompany(c, idx + 10000)),
+        updatedAt: parsed.updatedAt || new Date().toISOString(),
+      }
+
+      setDb(payload)
+      localStorage.setItem(DB_KEY, JSON.stringify(payload))
+      setSaveMsg('تم استيراد ملف JSON وتطبيق التغييرات.')
+      setTimeout(() => setSaveMsg(''), 3500)
+    } catch {
+      setSaveMsg('ملف JSON غير صالح.')
+      setTimeout(() => setSaveMsg(''), 3500)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const resetFromBundledJson = async () => {
+    try {
+      const res = await fetch(PUBLIC_DB_PATH, { cache: 'no-store' })
+      if (!res.ok) throw new Error('fetch failed')
+      const data = await res.json()
+      if (!Array.isArray(data.companies) || !Array.isArray(data.archived)) {
+        throw new Error('invalid db')
+      }
+      const payload = {
+        companies: data.companies.map((c, idx) => normalizeCompany(c, idx)),
+        archived: data.archived.map((c, idx) => normalizeCompany(c, idx + 10000)),
+        updatedAt: data.updatedAt || new Date().toISOString(),
+      }
+      setDb(payload)
+      localStorage.setItem(DB_KEY, JSON.stringify(payload))
+      setSaveMsg('تمت إعادة التحميل من ملف JSON الأساسي للموقع.')
+      setTimeout(() => setSaveMsg(''), 3500)
+    } catch {
+      setSaveMsg('تعذر إعادة التحميل من ملف JSON الأساسي.')
+      setTimeout(() => setSaveMsg(''), 3500)
+    }
   }
 
   const visibleCompanies = useMemo(() => db.companies.filter(isAllowedCompany), [db.companies])
@@ -346,6 +405,14 @@ function App() {
               />
               <button className="admin-btn" type="button" onClick={resetDraft}>+ شركة جديدة</button>
             </div>
+            <div className="admin-toolbar secondary">
+              <button className="admin-btn" type="button" onClick={exportDb}>تصدير JSON</button>
+              <label className="admin-btn file-btn">
+                استيراد JSON
+                <input type="file" accept="application/json" onChange={importDb} hidden />
+              </label>
+              <button className="admin-btn ghost" type="button" onClick={resetFromBundledJson}>استعادة من ملف الموقع</button>
+            </div>
 
             <h3>الشركات النشطة ({db.companies.length})</h3>
             <div className="admin-scroll">
@@ -421,6 +488,7 @@ function App() {
               <button className="admin-btn ghost" type="button" onClick={resetDraft}>تفريغ النموذج</button>
             </div>
             {saveMsg && <p className="save-msg">{saveMsg}</p>}
+            <p className="muted" style={{ marginTop: '10px' }}>بدون خادم: التعديلات تُحفظ في هذا المتصفح. إذا أردت نقلها أو اعتمادها للنشر، صدّر JSON ثم استبدل ملف الموقع به.</p>
           </div>
         </div>
       </div>

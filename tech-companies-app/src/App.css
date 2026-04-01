@@ -567,6 +567,10 @@ td:nth-child(1) {
   margin-bottom: 10px;
 }
 
+.admin-toolbar.secondary {
+  flex-wrap: wrap;
+}
+
 .admin-scroll {
   max-height: 340px;
   overflow: auto;
@@ -621,6 +625,12 @@ td:nth-child(1) {
 
 .admin-btn:hover {
   border-color: var(--primary);
+}
+
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-btn.danger {
